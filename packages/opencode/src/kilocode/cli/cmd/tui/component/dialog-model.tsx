@@ -1,5 +1,5 @@
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, createSignal, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
 import { flatMap, entries, filter, sortBy, pipe, map } from "remeda"
@@ -325,6 +325,9 @@ function PricingRow(props: { label: string; value: string; active: boolean }) {
     </box>
   )
 }
+
+
+
 
 
 
