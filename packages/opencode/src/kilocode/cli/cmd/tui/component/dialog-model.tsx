@@ -5,7 +5,7 @@ import { useSync } from "@tui/context/sync"
 import { flatMap, entries, filter, sortBy, pipe, map } from "remeda"
 import { useDialog } from "@tui/ui/dialog"
 import type { Model } from "@legion/sdk/v2"
-import { useConnected } from "./use-connected"
+import { useConnected } from "@/cli/cmd/tui/component/use-connected"
 import { ModelInfoPanel } from "@/kilocode/components/model-info-panel"
 import { fmtPrice } from "@/kilocode/components/model-info-panel-utils"
 import { FreeModelDisclosure } from "@/kilocode/components/free-model-disclosure"
@@ -13,7 +13,7 @@ import { createStore } from "solid-js/store"
 import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { useBindings } from "@tui/keymap"
-import { DialogVariant } from "./dialog-variant"
+import { DialogVariant } from "@/cli/cmd/tui/component/dialog-variant"
 
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
@@ -325,5 +325,6 @@ function PricingRow(props: { label: string; value: string; active: boolean }) {
     </box>
   )
 }
+
 
 
