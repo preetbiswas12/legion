@@ -8,14 +8,9 @@
 
 ## 🚀 Quick Demo
 
-**[Watch Legion in action →](https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4)**
+![Watch the Demo Video](https://res.cloudinary.com/ttrllc2i/image/upload/v1787923643/recording_1_azkhfs_1_0-00-23-22_lnmk1l.png)
 
-<video width="100%" controls>
-  <source src="https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4" type="video/mp4">
-  Your browser doesn't support embedded video. <a href="https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4">Click here to watch</a>
-</video>
-
-*See Legion turn a natural language request into working code in real-time.*
+*Click the button above to watch Legion turn a natural language request into working code in real-time.*
 
 ---
 
@@ -206,4 +201,3 @@ MIT
 **Built for developers who move fast and hate context switching.**
 
 **Keywords:** AI coding agent, CLI tool, code generation, terminal, LLM, automation, developer productivity, MCP, multi-model AI
-
