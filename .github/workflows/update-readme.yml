@@ -20,44 +20,70 @@ jobs:
           node-version: "24"
           registry-url: "https://npmjs.org"
 
-      - name: Scaffold patch release container
+      - name: Dynamic manifest generation and publish
         run: |
-          # 1. Fetch the absolute latest version from npm
+          # 1. Fetch current production version reference
           LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
           echo "Current package registry version: $LATEST_VERSION"
           
-          # 2. Programmatically parse and bump the patch index
+          # 2. Increment the patch index 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
           NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
           echo "Target readme-only version: $NEW_VERSION"
 
-          # 3. Build a clean, isolated directory for deployment
-          mkdir -p "$RUNNER_TEMP/npm-readme-patch"
-          
-          # 4. Copy current package definitions from npm to preserve structural integrity
-          cd "$RUNNER_TEMP/npm-readme-patch"
-          npm pack @legioncli/cli@$LATEST_VERSION
-          tar -xzf *.tgz
-          mv package/* .
-          rm -rf package *.tgz
+          # 3. Target your local package construction zone
+          mkdir -p "packages/opencode/dist/@legioncli/cli"
+          cd "packages/opencode"
 
-          # 5. Overwrite the package payload version with our target version bump
+          # 4. Copy existing baseline repository files
+          cp -r bin dist/@legioncli/cli/bin
+          cp script/postinstall.mjs dist/@legioncli/cli/postinstall.mjs
+          cp ../../LICENSE dist/@legioncli/cli/LICENSE
+          cp ../../README.md dist/@legioncli/cli/README.md
+
+          # 5. Extract optional dependencies metadata dynamically from your build configurations
+          OPTIONAL_DEPS="{}"
+          for dir in dist/@legioncli/cli-*/; do
+            if [ -d "$dir" ]; then
+              PLATFORM_NAME=$(cat "$dir/package.json" | grep '"name"' | head -1 | sed 's/.*: *"//;s/".*//')
+              OPTIONAL_DEPS=$(echo "$OPTIONAL_DEPS" | node -e "
+                const fs = require('fs');
+                const data = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
+                data['$PLATFORM_NAME'] = '$NEW_VERSION';
+                console.log(JSON.stringify(data));
+              ")
+            fi
+          done
+
+          # 6. Generate a pristine package.json file
           node -e "
             const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '$NEW_VERSION';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-          "
+            const pkg = {
+              name: '@legioncli/cli',
+              version: '$NEW_VERSION',
+              bin: {
+                legion: './bin/legion',
+                legioncli: './bin/legion'
+              },
+              scripts: {
+                postinstall: 'node ./postinstall.mjs'
+              },
+              license: 'MIT',
+              repository: {
+                type: 'git',
+                url: 'https://github.com'
+              },
+              os: ['darwin', 'linux', 'win32'],
+              cpu: ['arm64', 'x64'],
+              private: false,
+              optionalDependencies: JSON.parse(process.argv[1])
+            };
+            fs.writeFileSync('dist/@legioncli/cli/package.json', JSON.stringify(pkg, null, 2));
+          " "$OPTIONAL_DEPS"
 
-          # 6. Inject your freshly modified root README into this distribution package
-          cp "$GITHUB_WORKSPACE/README.md" ./README.md
-
-          # 7. Print setup to logs for safety verification
-          echo "--- Verifying manifest properties ---"
-          cat package.json
-
-          # 8. Ship the hotfix directly to the registry
-          echo "Publishing package version $NEW_VERSION with updated documentation..."
+          # 7. Ship the clean readme release directly to npm
+          cd dist/@legioncli/cli
+          echo "Publishing documentation patch release..."
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
