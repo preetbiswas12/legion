@@ -22,14 +22,13 @@ jobs:
 
       - name: Dynamic manifest generation and publish
         run: |
-          # 1. Fetch current production version reference from npm registry
+          # 1. Force the target readme-only version to 2.4.6
+          NEW_VERSION="2.4.6"
+          echo "Target readme-only version forced to: $NEW_VERSION"
+
+          # 2. Fetch current production version reference from npm registry to map older dependencies
           LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
-          echo "Current package registry version: $LATEST_VERSION"
-          
-          # 2. Increment the patch index for the main wrapper
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
-          NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
-          echo "Target readme-only version: $NEW_VERSION"
+          echo "Current package registry base version: $LATEST_VERSION"
 
           # 3. Target local package construction sandbox zone
           mkdir -p packages/opencode/dist/@legioncli/cli
@@ -40,7 +39,7 @@ jobs:
           cp script/postinstall.mjs dist/@legioncli/cli/postinstall.mjs
           cp ../../LICENSE dist/@legioncli/cli/LICENSE
           
-          # 5. Pull your newly saved README directly from the same local folder context
+          # 5. Pull your newly saved README directly from the local folder context
           cp README.md dist/@legioncli/cli/README.md
 
           # 6. Lock optional dependencies specifically to the existing live registry version
