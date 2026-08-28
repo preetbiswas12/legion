@@ -40,7 +40,7 @@ jobs:
           cp script/postinstall.mjs dist/@legioncli/cli/postinstall.mjs
           cp ../../LICENSE dist/@legioncli/cli/LICENSE
           
-          # 5. FIX: Pull your newly saved README directly from the same local folder context
+          # 5. Pull your newly saved README directly from the same local folder context
           cp README.md dist/@legioncli/cli/README.md
 
           # 6. Lock optional dependencies specifically to the existing live registry version
@@ -57,7 +57,8 @@ jobs:
             fi
           done
 
-          # 7. Generate a pristine package.json file satisfying explicit formatting rules
+          # 7. Generate a pristine package.json file safely using environment context variables
+          export OPTIONAL_DEPS
           node -e "
             const fs = require('fs');
             const pkg = {
@@ -78,10 +79,10 @@ jobs:
               os: ['darwin', 'linux', 'win32'],
               cpu: ['arm64', 'x64'],
               private: false,
-              optionalDependencies: JSON.parse(process.argv)
+              optionalDependencies: JSON.parse(process.env.OPTIONAL_DEPS)
             };
             fs.writeFileSync('dist/@legioncli/cli/package.json', JSON.stringify(pkg, null, 2));
-          " "$OPTIONAL_DEPS"
+          "
 
           # 8. Ship the hotfix package containing your updated readme layout directly to npm
           cd dist/@legioncli/cli
