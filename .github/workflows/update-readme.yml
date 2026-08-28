@@ -1,0 +1,63 @@
+name: Update npm README Only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://npmjs.org"
+
+      - name: Scaffold patch release container
+        run: |
+          # 1. Fetch the absolute latest version from npm
+          LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
+          echo "Current package registry version: $LATEST_VERSION"
+          
+          # 2. Programmatically parse and bump the patch index
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
+          NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
+          echo "Target readme-only version: $NEW_VERSION"
+
+          # 3. Build a clean, isolated directory for deployment
+          mkdir -p "$RUNNER_TEMP/npm-readme-patch"
+          
+          # 4. Copy current package definitions from npm to preserve structural integrity
+          cd "$RUNNER_TEMP/npm-readme-patch"
+          npm pack @legioncli/cli@$LATEST_VERSION
+          tar -xzf *.tgz
+          mv package/* .
+          rm -rf package *.tgz
+
+          # 5. Overwrite the package payload version with our target version bump
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          "
+
+          # 6. Inject your freshly modified root README into this distribution package
+          cp "$GITHUB_WORKSPACE/README.md" ./README.md
+
+          # 7. Print setup to logs for safety verification
+          echo "--- Verifying manifest properties ---"
+          cat package.json
+
+          # 8. Ship the hotfix directly to the registry
+          echo "Publishing package version $NEW_VERSION with updated documentation..."
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
