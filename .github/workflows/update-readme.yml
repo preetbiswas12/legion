@@ -18,11 +18,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          registry-url: "https://npmjs.org"
 
       - name: Dynamic manifest generation and publish
         run: |
-          # 1. Fetch current production version reference
+          # 1. Fetch current production version reference from npm registry
           LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
           echo "Current package registry version: $LATEST_VERSION"
           
@@ -31,7 +31,7 @@ jobs:
           NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
           echo "Target readme-only version: $NEW_VERSION"
 
-          # 3. Target your local package construction zone
+          # 3. Target local package construction sandbox zone
           mkdir -p packages/opencode/dist/@legioncli/cli
           cd packages/opencode
 
@@ -39,9 +39,11 @@ jobs:
           cp -r bin dist/@legioncli/cli/bin
           cp script/postinstall.mjs dist/@legioncli/cli/postinstall.mjs
           cp ../../LICENSE dist/@legioncli/cli/LICENSE
-          cp ../../README.md dist/@legioncli/cli/README.md
+          
+          # 5. FIX: Pull your newly saved README directly from the same local folder context
+          cp README.md dist/@legioncli/cli/README.md
 
-          # 5. Lock optional dependencies to the existing live registry version (LATEST_VERSION)
+          # 6. Lock optional dependencies specifically to the existing live registry version
           OPTIONAL_DEPS="{}"
           for dir in dist/@legioncli/cli-*/; do
             if [ -d "$dir" ]; then
@@ -55,7 +57,7 @@ jobs:
             fi
           done
 
-          # 6. Generate a clean package.json with corrected binary path references
+          # 7. Generate a pristine package.json file satisfying explicit formatting rules
           node -e "
             const fs = require('fs');
             const pkg = {
@@ -76,12 +78,12 @@ jobs:
               os: ['darwin', 'linux', 'win32'],
               cpu: ['arm64', 'x64'],
               private: false,
-              optionalDependencies: JSON.parse(process.argv[1])
+              optionalDependencies: JSON.parse(process.argv)
             };
             fs.writeFileSync('dist/@legioncli/cli/package.json', JSON.stringify(pkg, null, 2));
           " "$OPTIONAL_DEPS"
 
-          # 7. Ship the clean readme release directly to npm
+          # 8. Ship the hotfix package containing your updated readme layout directly to npm
           cd dist/@legioncli/cli
           echo "Publishing documentation patch release..."
           npm publish --access public
