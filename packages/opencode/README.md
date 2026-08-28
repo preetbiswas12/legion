@@ -8,7 +8,7 @@
 
 ## 🚀 Quick Demo
 
-**[Watch Legion in action →](https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4)**
+**https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4**
 
 <video width="100%" controls>
   <source src="https://res.cloudinary.com/ttrllc2i/video/upload/v1787570604/recording_1_azkhfs.mp4" type="video/mp4">
