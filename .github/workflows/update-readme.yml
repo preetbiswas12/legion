@@ -18,7 +18,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          registry-url: "https://npmjs.org"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Dynamic manifest generation and publish
         run: |
@@ -26,23 +26,42 @@ jobs:
           NEW_VERSION="2.4.6"
           echo "Target readme-only version forced to: $NEW_VERSION"
 
-          # 2. Fetch current production version reference from npm registry to map older dependencies
-          LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
-          echo "Current package registry base version: $LATEST_VERSION"
-
-          # 3. Target local package construction sandbox zone
-          mkdir -p packages/opencode/dist/@legioncli/cli
+          # 2. Extract current platform definitions from your directory
           cd packages/opencode
 
-          # 4. Copy existing baseline repository files
+          # 3. Step A: Publish matching platform-specific placeholder packages at 2.4.6
+          for dir in dist/@legioncli/cli-*/; do
+            if [ -d "$dir" ]; then
+              PKG_NAME=$(cat "$dir/package.json" | grep '"name"' | head -1 | sed 's/.*: *"//;s/".*//')
+              echo "Synchronizing platform package $PKG_NAME to $NEW_VERSION..."
+              
+              # Safely update the version field in the platform package.json file
+              node -e "
+                const fs = require('fs');
+                const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
+                pkg.version = '$NEW_VERSION';
+                fs.writeFileSync('$dir/package.json', JSON.stringify(pkg, null, 2));
+              "
+              
+              # Publish the platform package directly to avoid a main package 403 error
+              cd "$dir"
+              if npm view "${PKG_NAME}@${NEW_VERSION}" version >/dev/null 2>&1; then
+                echo "Already published ${PKG_NAME}@${NEW_VERSION}, skipping"
+              else
+                npm publish --access public || echo "Warning: Platform publish failed, moving forward..."
+              fi
+              cd -
+            fi
+          done
+
+          # 4. Step B: Setup main wrapper container directory
+          mkdir -p dist/@legioncli/cli
           cp -r bin dist/@legioncli/cli/bin
           cp script/postinstall.mjs dist/@legioncli/cli/postinstall.mjs
           cp ../../LICENSE dist/@legioncli/cli/LICENSE
-          
-          # 5. Pull your newly saved README directly from the local folder context
           cp README.md dist/@legioncli/cli/README.md
 
-          # 6. Lock optional dependencies specifically to the existing live registry version
+          # 5. Lock optional dependencies to match the newly pushed platform version (2.4.6)
           OPTIONAL_DEPS="{}"
           for dir in dist/@legioncli/cli-*/; do
             if [ -d "$dir" ]; then
@@ -50,13 +69,13 @@ jobs:
               OPTIONAL_DEPS=$(echo "$OPTIONAL_DEPS" | node -e "
                 const fs = require('fs');
                 const data = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
-                data['$PLATFORM_NAME'] = '$LATEST_VERSION';
+                data['$PLATFORM_NAME'] = '$NEW_VERSION';
                 console.log(JSON.stringify(data));
               ")
             fi
           done
 
-          # 7. Generate a pristine package.json file safely using environment context variables
+          # 6. Generate pristine package.json file safely using environment context variables
           export OPTIONAL_DEPS
           node -e "
             const fs = require('fs');
@@ -83,9 +102,9 @@ jobs:
             fs.writeFileSync('dist/@legioncli/cli/package.json', JSON.stringify(pkg, null, 2));
           "
 
-          # 8. Ship the hotfix package containing your updated readme layout directly to npm
+          # 7. Ship the main wrapper containing your updated readme layout directly to npm
           cd dist/@legioncli/cli
-          echo "Publishing documentation patch release..."
+          echo "Publishing main documentation package release..."
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
