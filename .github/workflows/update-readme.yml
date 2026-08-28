@@ -2,6 +2,11 @@ name: Update npm README Only
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Target version number (e.g. 2.4.6)"
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -18,35 +23,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+          registry-url: "https://npmjs.org"
 
       - name: Dynamic manifest generation and publish
         run: |
-          # 1. Force the target readme-only version to 2.4.6
-          NEW_VERSION="2.4.6"
-          echo "Target readme-only version forced to: $NEW_VERSION"
+          # 1. Resolve version number from user input or fallback to auto-patch
+          if [ -n "${{ inputs.version }}" ]; then
+            TARGET_VERSION="${{ inputs.version }}"
+            echo "Target version explicitly requested: $TARGET_VERSION"
+          else
+            LATEST_VERSION=$(npm view @legioncli/cli version 2>/dev/null || echo "2.4.4")
+            echo "Current package registry version: $LATEST_VERSION"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
+            TARGET_VERSION="${MAJOR}.${MINOR}.$((PATCH+1))"
+            echo "No version provided. Auto-incremented to target version: $TARGET_VERSION"
+          fi
 
           # 2. Extract current platform definitions from your directory
           cd packages/opencode
 
-          # 3. Step A: Publish matching platform-specific placeholder packages at 2.4.6
+          # 3. Step A: Publish matching platform-specific placeholder packages at target version
           for dir in dist/@legioncli/cli-*/; do
             if [ -d "$dir" ]; then
               PKG_NAME=$(cat "$dir/package.json" | grep '"name"' | head -1 | sed 's/.*: *"//;s/".*//')
-              echo "Synchronizing platform package $PKG_NAME to $NEW_VERSION..."
+              echo "Synchronizing platform package $PKG_NAME to $TARGET_VERSION..."
               
               # Safely update the version field in the platform package.json file
               node -e "
                 const fs = require('fs');
                 const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
-                pkg.version = '$NEW_VERSION';
+                pkg.version = '$TARGET_VERSION';
                 fs.writeFileSync('$dir/package.json', JSON.stringify(pkg, null, 2));
               "
               
               # Publish the platform package directly to avoid a main package 403 error
               cd "$dir"
-              if npm view "${PKG_NAME}@${NEW_VERSION}" version >/dev/null 2>&1; then
-                echo "Already published ${PKG_NAME}@${NEW_VERSION}, skipping"
+              if npm view "${PKG_NAME}@${TARGET_VERSION}" version >/dev/null 2>&1; then
+                echo "Already published ${PKG_NAME}@${TARGET_VERSION}, skipping"
               else
                 npm publish --access public || echo "Warning: Platform publish failed, moving forward..."
               fi
@@ -61,7 +74,7 @@ jobs:
           cp ../../LICENSE dist/@legioncli/cli/LICENSE
           cp README.md dist/@legioncli/cli/README.md
 
-          # 5. Lock optional dependencies to match the newly pushed platform version (2.4.6)
+          # 5. Lock optional dependencies specifically to the target version
           OPTIONAL_DEPS="{}"
           for dir in dist/@legioncli/cli-*/; do
             if [ -d "$dir" ]; then
@@ -69,7 +82,7 @@ jobs:
               OPTIONAL_DEPS=$(echo "$OPTIONAL_DEPS" | node -e "
                 const fs = require('fs');
                 const data = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
-                data['$PLATFORM_NAME'] = '$NEW_VERSION';
+                data['$PLATFORM_NAME'] = '$TARGET_VERSION';
                 console.log(JSON.stringify(data));
               ")
             fi
@@ -81,7 +94,7 @@ jobs:
             const fs = require('fs');
             const pkg = {
               name: '@legioncli/cli',
-              version: '$NEW_VERSION',
+              version: '$TARGET_VERSION',
               bin: {
                 legion: 'bin/legion',
                 legioncli: 'bin/legion'
