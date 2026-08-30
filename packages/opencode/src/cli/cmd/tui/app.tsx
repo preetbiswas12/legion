@@ -70,7 +70,7 @@ import { createTuiApi } from "@/cli/cmd/tui/plugin/api"
 import type { RouteMap } from "@/cli/cmd/tui/plugin/api"
 import { createTuiAttention } from "@/cli/cmd/tui/attention"
 import { FormatError, FormatUnknownError } from "@/cli/error"
-import { kitty, resetTerminalState } from "@/kilocode/cli/cmd/tui/util/terminal" // kilocode_change
+import { kitty, resetRawMode, resetTerminalState } from "@/kilocode/cli/cmd/tui/util/terminal" // kilocode_change
 import { hasDisplay } from "@/kilocode/cli/cmd/tui/util/display" // kilocode_change
 import { CommandPaletteDialog } from "./component/command-palette"
 import {
@@ -206,7 +206,12 @@ export function tui(input: TuiInput): TuiHandle {
   const unguard = win32InstallCtrlCGuard()
   win32DisableProcessedInput()
 
-  process.on("exit", resetTerminalState) // kilocode_change
+  resetRawMode() // kilocode_change
+
+  process.on("exit", () => {
+    resetTerminalState()
+    resetRawMode() // kilocode_change
+  })
 
   const renderer = input.renderer
   const keymap = createDefaultOpenTuiKeymap(renderer)
@@ -323,6 +328,7 @@ function createTuiLifecycle(input: {
   const cleanup = () => {
     cleanupTask ??= (async () => {
       process.off("SIGHUP", onSighup)
+      process.off("SIGINT", onSigint) // kilocode_change
       try {
         await input.cleanup()
       } finally {
@@ -330,6 +336,11 @@ function createTuiLifecycle(input: {
       }
     })()
     return cleanupTask
+  }
+
+  const onSigint = () => {
+    resetRawMode() // kilocode_change
+    void exit()
   }
 
   const exit = createExit(async (reason, message) => {
@@ -341,6 +352,7 @@ function createTuiLifecycle(input: {
     }
     win32FlushInputBuffer()
     resetTerminalState() // kilocode_change
+    resetRawMode() // kilocode_change
     if (reason) {
       const formatted = FormatError(reason) ?? FormatUnknownError(reason)
       if (formatted) process.stderr.write(formatted + "\n")
@@ -358,10 +370,12 @@ function createTuiLifecycle(input: {
     void cleanup().finally(() => {
       win32FlushInputBuffer()
       resetTerminalState() // kilocode_change
+      resetRawMode() // kilocode_change
       completeExit()
     })
   })
   process.on("SIGHUP", onSighup)
+  process.on("SIGINT", onSigint) // kilocode_change
 
   return {
     exit,
@@ -372,6 +386,7 @@ function createTuiLifecycle(input: {
       if (!input.renderer.isDestroyed) input.renderer.destroy()
       win32FlushInputBuffer() // kilocode_change
       resetTerminalState() // kilocode_change
+      resetRawMode() // kilocode_change
       completeExit()
       throw error
     },

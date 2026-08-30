@@ -54,3 +54,13 @@ export function resetTerminalState() {
     console.error("resetTerminalState failed", err)
   }
 }
+
+export function resetRawMode() {
+  try {
+    if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+      process.stdin.setRawMode(false)
+    }
+  } catch {
+    // ignore
+  }
+}
