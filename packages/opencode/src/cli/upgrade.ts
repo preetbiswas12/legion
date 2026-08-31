@@ -28,28 +28,11 @@ export async function upgrade() {
 
   if (InstallationVersion === latest) return
 
-  const kind = Installation.getReleaseType(InstallationVersion, latest)
-
-  if (config.autoupdate === "notify" || kind !== "patch") {
-    GlobalBus.emit("event", {
-      directory: "global",
-      payload: {
-        type: Installation.Event.UpdateAvailable.type,
-        properties: { version: latest },
-      },
-    })
-    return
-  }
-
-  await Installation.upgrade(method, latest)
-    .then(() =>
-      GlobalBus.emit("event", {
-        directory: "global",
-        payload: {
-          type: Installation.Event.Updated.type,
-          properties: { version: latest },
-        },
-      }),
-    )
-    .catch(() => {})
+  GlobalBus.emit("event", {
+    directory: "global",
+    payload: {
+      type: Installation.Event.UpdateAvailable.type,
+      properties: { version: latest },
+    },
+  })
 }

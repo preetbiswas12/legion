@@ -21,7 +21,6 @@ import {
 } from "solid-js"
 import { win32DisableProcessedInput, win32FlushInputBuffer, win32InstallCtrlCGuard } from "./win32"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import semver from "semver"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
 import { DialogProvider as DialogProviderList } from "@tui/component/dialog-provider"
 import { ErrorComponent } from "@tui/component/error-component"
@@ -1034,20 +1033,12 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   event.on("installation.update-available", async (evt) => {
     const version = evt.properties.version
 
-    const skipped = kv.get("skipped_version")
-    if (skipped && !semver.gt(version, skipped)) return
-
     const choice = await DialogConfirm.show(
       dialog,
       `Update Available`,
       `A new release v${version} is available. Would you like to update now?`,
       "skip",
     )
-
-    if (choice === false) {
-      kv.set("skipped_version", version)
-      return
-    }
 
     if (choice !== true) return
 
