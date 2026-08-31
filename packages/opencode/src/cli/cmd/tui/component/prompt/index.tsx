@@ -325,20 +325,17 @@ export function Prompt(props: PromptProps) {
   const pasteStyleId = syntax().getStyleId("extmark.paste")!
   let promptPartTypeId = 0
   const event = useEvent()
-  const [pendingAppend, setPendingAppend] = createSignal("")
-
-  createEffect(() => {
-    const text = pendingAppend()
-    if (!text || !input || input.isDestroyed) return
-    input.insertText(text)
-    input.getLayoutNode().markDirty()
-    input.gotoBufferEnd()
-    renderer.requestRender()
-    setPendingAppend("")
-  })
 
   event.on(TuiEvent.PromptAppend.type, (evt) => {
-    setPendingAppend((prev) => prev + evt.properties.text)
+    if (!input || input.isDestroyed) return
+    input.insertText(evt.properties.text)
+    setTimeout(() => {
+      // setTimeout is a workaround and needs to be addressed properly
+      if (!input || input.isDestroyed) return
+      input.getLayoutNode().markDirty()
+      input.gotoBufferEnd()
+      renderer.requestRender()
+    }, 0)
   })
 
   createEffect(() => {
@@ -1413,8 +1410,12 @@ export function Prompt(props: PromptProps) {
     }
 
     input.insertText(normalizedText)
-    input.getLayoutNode().markDirty()
-    renderer.requestRender()
+
+    setTimeout(() => {
+      if (!input || input.isDestroyed) return
+      input.getLayoutNode().markDirty()
+      renderer.requestRender()
+    }, 0)
   }
 
   async function pasteAttachment(file: { filename?: string; filepath?: string; content: string; mime: string }) {
@@ -1617,13 +1618,6 @@ export function Prompt(props: PromptProps) {
               /* kilocode_change */ onCursorChange={() => {
                 setCursorVersion((value) => value + 1)
                 if (store.mode === "normal") auto()?.onCursorChange()
-                if (!input || input.isDestroyed) return
-                const max = input.plainText.length
-                const offset = input.cursorOffset
-                if (offset < 0 || offset > max) {
-                  input.cursorOffset = Math.max(0, Math.min(offset, max))
-                  input.getLayoutNode().markDirty()
-                }
               }}
               onKeyDown={(e: { preventDefault(): void }) => {
                 if (props.disabled) {
@@ -1671,6 +1665,11 @@ export function Prompt(props: PromptProps) {
                   promptPartTypeId = input.extmarks.registerType("prompt-part")
                 }
                 props.ref?.(ref)
+                setTimeout(() => {
+                  // setTimeout is a workaround and needs to be addressed properly
+                  if (!input || input.isDestroyed) return
+                  input.cursorColor = theme.text
+                }, 0)
               }}
               onMouseDown={(r: MouseEvent) => r.target?.focus()}
               focusedBackgroundColor={theme.backgroundElement}

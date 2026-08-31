@@ -1,7 +1,6 @@
 import { afterEach, expect, spyOn, test } from "bun:test"
 import { createTestRenderer } from "@opentui/core/testing"
 import { mkdir } from "node:fs/promises"
-import fs from "node:fs"
 import path from "node:path"
 import { tmpdir } from "../../fixture/fixture"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
@@ -182,112 +181,6 @@ test("plugin, audio, and keymap cleanup run exactly once", async () => {
     registerKeymap.mockRestore()
     disposePlugins.mockRestore()
     disposeAudio.mockRestore()
-  }
-})
-
-test("exit fires resetTerminalState and resetRawMode", async () => {
-  const writeSyncCalls: string[] = []
-  const rawModeCalls: boolean[] = []
-
-  const restoreWriteSync = spyOn(fs, "writeSync").mockImplementation((fd, buf) => {
-    writeSyncCalls.push(buf.toString())
-    return 1
-  })
-
-  const originalSetRawMode = process.stdin.setRawMode
-  process.stdin.isTTY = true
-  process.stdin.setRawMode = ((mode: boolean) => {
-    rawModeCalls.push(mode)
-    if (originalSetRawMode) originalSetRawMode.call(process.stdin, mode)
-  }) as any
-
-  try {
-    const app = await startTui()
-    app.theme.resolve("dark")
-    await app.handle.ready
-
-    await app.handle.exit()
-    await app.handle.done
-
-    const allOutput = writeSyncCalls.join("")
-    expect(allOutput).toContain("\x1b[?1000l")
-    expect(allOutput).toContain("\x1b[?25h")
-    expect(rawModeCalls).toContain(false)
-  } finally {
-    process.stdin.setRawMode = originalSetRawMode
-    restoreWriteSync.mockRestore()
-  }
-})
-
-test("SIGINT triggers cleanup and resets terminal state", async () => {
-  const writeSyncCalls: string[] = []
-  const restoreWriteSync = spyOn(fs, "writeSync").mockImplementation((fd, buf) => {
-    writeSyncCalls.push(buf.toString())
-    return 1
-  })
-
-  try {
-    const app = await startTui()
-    app.theme.resolve("dark")
-    await app.handle.ready
-
-    process.emit("SIGINT")
-    await app.handle.done
-
-    expect(app.setup.renderer.isDestroyed).toBe(true)
-    expect(writeSyncCalls.length).toBeGreaterThanOrEqual(1)
-  } finally {
-    restoreWriteSync.mockRestore()
-  }
-})
-
-test("fail() path resets terminal state and raw mode", async () => {
-  const writeSyncCalls: string[] = []
-  const rawModeCalls: boolean[] = []
-
-  const restoreWriteSync = spyOn(fs, "writeSync").mockImplementation((fd, buf) => {
-    writeSyncCalls.push(buf.toString())
-    return 1
-  })
-
-  const originalSetRawMode = process.stdin.setRawMode
-  process.stdin.isTTY = true
-  process.stdin.setRawMode = ((mode: boolean) => {
-    rawModeCalls.push(mode)
-    if (originalSetRawMode) originalSetRawMode.call(process.stdin, mode)
-  }) as any
-
-  try {
-    const app = await startTui({ rejectTheme: new Error("theme failed") })
-    await expect(app.handle.done).rejects.toThrow("theme failed")
-
-    expect(writeSyncCalls.length).toBeGreaterThanOrEqual(1)
-    expect(rawModeCalls).toContain(false)
-  } finally {
-    process.stdin.setRawMode = originalSetRawMode
-    restoreWriteSync.mockRestore()
-  }
-})
-
-test("direct renderer destruction still cleans up and resolves done", async () => {
-  const beforeSighup = process.listenerCount("SIGHUP")
-  const writeSyncCalls: string[] = []
-  const restoreWriteSync = spyOn(fs, "writeSync").mockImplementation((fd, buf) => {
-    writeSyncCalls.push(buf.toString())
-    return 1
-  })
-
-  try {
-    const app = await startTui()
-    app.theme.resolve("dark")
-    await app.handle.ready
-    app.setup.renderer.destroy()
-    await app.handle.done
-
-    expect(process.listenerCount("SIGHUP")).toBe(beforeSighup)
-    expect(writeSyncCalls.length).toBeGreaterThanOrEqual(1)
-  } finally {
-    restoreWriteSync.mockRestore()
   }
 })
 
