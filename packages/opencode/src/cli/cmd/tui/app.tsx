@@ -70,7 +70,7 @@ import { createTuiApi } from "@/cli/cmd/tui/plugin/api"
 import type { RouteMap } from "@/cli/cmd/tui/plugin/api"
 import { createTuiAttention } from "@/cli/cmd/tui/attention"
 import { FormatError, FormatUnknownError } from "@/cli/error"
-import { kitty, resetRawMode, resetTerminalState } from "@/kilocode/cli/cmd/tui/util/terminal" // kilocode_change
+import { kitty, resetRawMode, resetTerminalState, resetTerminalStateOnExit } from "@/kilocode/cli/cmd/tui/util/terminal" // kilocode_change
 import { hasDisplay } from "@/kilocode/cli/cmd/tui/util/display" // kilocode_change
 import { CommandPaletteDialog } from "./component/command-palette"
 import {
@@ -208,10 +208,8 @@ export function tui(input: TuiInput): TuiHandle {
 
   resetRawMode() // kilocode_change
 
-  process.on("exit", () => {
-    resetTerminalState()
-    resetRawMode() // kilocode_change
-  })
+  process.on("exit", resetTerminalStateOnExit) // kilocode_change
+  process.on("beforeExit", resetTerminalStateOnExit) // kilocode_change
 
   const renderer = input.renderer
   const keymap = createDefaultOpenTuiKeymap(renderer)
@@ -348,6 +346,12 @@ function createTuiLifecycle(input: {
     await cleanup()
     if (!input.renderer.isDestroyed) {
       input.renderer.setTerminalTitle("")
+      if (typeof input.renderer.suspend === "function") {
+        input.renderer.suspend()
+      }
+      if (typeof input.renderer.idle === "function") {
+        await input.renderer.idle()
+      }
       input.renderer.destroy()
     }
     win32FlushInputBuffer()

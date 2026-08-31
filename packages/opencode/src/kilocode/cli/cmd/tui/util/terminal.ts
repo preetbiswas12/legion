@@ -64,3 +64,13 @@ export function resetRawMode() {
     // ignore
   }
 }
+
+export function resetTerminalStateOnExit() {
+  resetTerminalState()
+  resetRawMode()
+  try {
+    fs.writeSync(process.stdout.fd, "\x1b[0m\x1b[?25h\x1b[2J")
+  } catch {
+    // ignore
+  }
+}
