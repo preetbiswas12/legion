@@ -13,6 +13,7 @@ import { createStore } from "solid-js/store"
 import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useTheme } from "@tui/context/theme"
 import { useBindings } from "@tui/keymap"
+import { useTuiConfig } from "@tui/context/tui-config"
 import { DialogVariant } from "@/cli/cmd/tui/component/dialog-variant"
 
 export function DialogModel(props: { providerID?: string }) {
@@ -22,6 +23,7 @@ export function DialogModel(props: { providerID?: string }) {
   const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   const connected = useConnected()
+  const tuiConfig = useTuiConfig()
 
   const wide = createMemo(() => dimensions().width >= 108)
   const [preview, setPreview] = createSignal<{ model: Model; provider: string }>()
@@ -179,6 +181,11 @@ export function DialogModel(props: { providerID?: string }) {
         run: submit,
       },
     ],
+    bindings: tuiConfig.keybinds.gather("dialog.select", [
+      "dialog.select.prev",
+      "dialog.select.next",
+      "dialog.select.submit",
+    ]),
   }))
 
   return (
