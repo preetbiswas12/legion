@@ -216,6 +216,8 @@ export function init() {
             : "Enable auto-approve mode"
         },
         category: "System",
+        slashName: "auto-approve",
+        slashAliases: ["autoapprove", "auto_approve", "permissions"],
         run: async () => {
           const enabled = isAllowEverything(sync.data.config.permission)
           const result = await sdk.client.permission.allowEverything({ enable: !enabled })
