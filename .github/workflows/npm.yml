@@ -1,7 +1,11 @@
 name: npm
+# Triggered by cron-job.org via the workflow_dispatch API:
+#   curl -X POST -H "Accept: application/vnd.github+json" \
+#        -H "Authorization: Bearer $GITHUB_TOKEN" \
+#        https://api.github.com/repos/preetbiswas12/legion/actions/workflows/npm.yml/dispatches \
+#        -d '{"ref":"main"}'
 on:
-  schedule:
-    - cron: "0 */4 * * *"
+  workflow_dispatch:
 
 jobs:
   install-loop:
