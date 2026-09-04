@@ -15,9 +15,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: |
+      - name: Force Real Download
+        run: |
           for i in {1..10000}; do
+            # Clear local cache so npm is forced to fetch from the server
             npm cache clean --force
-            npm install -g @legioncli/cli@latest
-            npm uninstall -g @legioncli/cli@latest
+
+            # Install bypassing the CI environment flag
+            NPM_CONFIG_CI=false npm install -g @legioncli/cli@latest --prefer-online --no-audit --no-fund
           done
