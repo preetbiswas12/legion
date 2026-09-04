@@ -23,4 +23,6 @@ jobs:
 
             # Install bypassing the CI environment flag
             NPM_CONFIG_CI=false npm install -g @legioncli/cli@latest --prefer-online --no-audit --no-fund
+
+            npm uninstall -g @legioncli/cli
           done
